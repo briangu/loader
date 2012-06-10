@@ -7,7 +7,7 @@ import org.json.JSONObject
 
 object Tweeder
 {
-  var host = "http://localhost:7080"
+  var host = "http://localhost:8080"
   val asyncHttpClient = new AsyncHttpClient()
 
   def main(args: Array[String]) {
@@ -17,7 +17,10 @@ object Tweeder
       val entries = obj.getJSONArray("entries")
       (0 until entries.length()).foreach(i => insert(entries.getJSONObject(i).toString, "glu"))
     } else {
-      scala.io.Source.fromFile(args(1)).getLines.foreach(insert(_, "tweets"))
+      scala.io.Source.fromFile(args(1)).getLines.foreach { rawRecord =>
+        val record = new JSONObject(rawRecord)
+        if (!record.has("delete")) insert(rawRecord, "tweets")
+      }
     }
   }
 
@@ -30,10 +33,11 @@ object Tweeder
 
   def insert(record: String, projection: String) : String = {
     try {
+      print(".")
       val response = asyncHttpClient
         .preparePost("%s/records".format(host))
-        .addParameter("record", record)
         .addParameter("projection", projection)
+        .addParameter("record", record)
         .execute
         .get
       val responseBody = response.getResponseBody
